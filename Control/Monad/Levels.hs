@@ -23,6 +23,7 @@
 -- thanks to the use of a continuation monad.
 module Control.Monad.Levels ( bfs, idfs, idfsBy ) where
 
+import Data.Semigroup
 import Data.Monoid
 import Data.FMList
 
@@ -45,9 +46,11 @@ newtype Levels a = Levels { levels :: [FMList a] }
 runLevels :: Levels a -> [a]
 runLevels = toList . foldr append empty . levels
 
+instance Semigroup (Levels a) where
+  a <> b = Levels (empty : merge (levels a) (levels b))
+
 instance Monoid (Levels a) where
-  mempty        = Levels []
-  a `mappend` b = Levels (empty : merge (levels a) (levels b))
+  mempty = Levels []
 
 -- like 'zipWith append' without cutting the longer list
 merge :: [FMList a] -> [FMList a] -> [FMList a]
@@ -80,7 +83,9 @@ idfsBy n a = toList $ foldr append empty [ unFM a yield ! d | d <- [0,n..] ]
 -- to iterative deepening search.
 newtype DepthBound a = DepthBound { (!) :: Int -> FMList a }
 
+instance Semigroup (DepthBound a) where
+  a <> b = DepthBound (\d -> if d==0 then empty
+                              else append (a!(d-1)) (b!(d-1)))
+
 instance Monoid (DepthBound a) where
-  mempty        = DepthBound (const empty)
-  a `mappend` b = DepthBound (\d -> if d==0 then empty
-                                    else append (a!(d-1)) (b!(d-1)))
+  mempty = DepthBound (const empty)
